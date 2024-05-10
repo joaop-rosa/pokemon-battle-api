@@ -7,19 +7,65 @@ const app = express()
 const server = createServer(app)
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
   },
 })
 
-app.get("/", (req, res) => {
-  res.send("<h1>Hello world</h1>")
-})
+let connectedUsers = []
 
-io.on("connection", (socket) => {
-  console.log("a user connected")
+function addUser(user) {
+  if (connectedUsers.find((u) => user.socketId === u.socketId)) return
+
+  if (user.socketId && user.party && user.name) {
+    connectedUsers.push(user)
+    console.log("Usuário adicionado:", user.name)
+    emitConnectedList()
+  }
+}
+
+function removeUser(socketId) {
+  connectedUsers = connectedUsers.filter((user) => user.socketId !== socketId)
+}
+
+function emitConnectedList() {
+  io.emit("connected-list", connectedUsers)
+}
+
+io.on("connect", (socket) => {
+  console.log("Usuário conectado:", socket.id)
+
+  socket.on("connect-server", (name, party) => {
+    // Talvez adicionar validação de ataques da party
+    addUser({
+      name: name,
+      party: party,
+      socketId: socket.id,
+      isInBattle: false,
+    })
+  })
+
+  socket.on("battle-invite", (socketInvited) => {
+    console.log("socketInvited", socketInvited)
+    console.log("meu socket", socket.id)
+
+    // Enviar para o socket desafiado
+
+    // Caso o invite esteja ok enviar para o socket desafiante que esta aguardando
+
+    // Em caso negativo enviar resposta para socket desafiante
+
+    // Em caso positivo enviar ambos para batalha
+
+    // Atualizar algum status de inBattle
+  })
+
+  // Batalha
 
   socket.on("disconnect", () => {
-    console.log("user disconnected")
+    console.log("Usuário desconectado:", socket.id)
+    removeUser(socket.id)
+    emitConnectedList()
+    console.log("Lista Atual de usuários conectados", connectedUsers)
   })
 })
 
