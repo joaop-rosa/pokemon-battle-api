@@ -1,4 +1,12 @@
 import crypto from "crypto"
+import {
+  changeActivePokemon,
+  getMove,
+  isActivePokemonAlive,
+  isAllPokemonDeads,
+  isChallegerFirst,
+  processDamage,
+} from "./battles-helpers.js"
 
 export let connectedUsers = []
 export let challengesList = []
@@ -16,6 +24,26 @@ export function getUserByName(name) {
 
 export function addUser(user) {
   connectedUsers = [...connectedUsers, user]
+}
+
+export function connectUser(user) {
+  if (!user.socketId || !user.party || !user.name) {
+    return console.log("Falha na conexão de:", user.name)
+  }
+
+  const userFromList = getUserByName(user.name)
+
+  if (userFromList) {
+    if (userFromList.isOnline) {
+      console.log("Usuário " + user.name + " já está conectado")
+      return
+    }
+    updateIsOnline(user.name, user.socketId)
+    return console.log("Usuário conectado:", user.name)
+  }
+
+  addUser(user)
+  console.log("Usuário adicionado:", user.name)
 }
 
 export function removeUser(socketId) {
@@ -48,13 +76,14 @@ export function updateIsOnline(name, socketId) {
   })
 }
 
-export function updateIsInBattle(socketId, isInBattle = true) {
+export function updateIsInBattle(username, isInBattle) {
   connectedUsers = connectedUsers.map((user) => {
-    if (user.socketId === socketId) {
+    if (user.name === username) {
       return { ...user, isInBattle }
     }
     return user
   })
+  console.log("connectedUsers-updateIsInBattle", connectedUsers)
 }
 
 /* CHALLENGES */
@@ -139,75 +168,6 @@ export function updateBattleLog(battleIdParam, log, username) {
   }
 }
 
-function isChallegerFirst(
-  challengerActivePokemonSpeed,
-  challergerSelectedMovePriority,
-  userInvitedActivePokemonSpeed,
-  userInvitedSelectedMovePriority
-) {
-  if (challergerSelectedMovePriority && userInvitedSelectedMovePriority) {
-    return challengerActivePokemonSpeed > userInvitedActivePokemonSpeed
-  }
-
-  if (challergerSelectedMovePriority) {
-    return true
-  }
-
-  if (userInvitedSelectedMovePriority) {
-    return false
-  }
-
-  return challengerActivePokemonSpeed > userInvitedActivePokemonSpeed
-}
-
-function getMove(activePokemon, selectedMove) {
-  return Object.values(activePokemon.moves)
-    .filter(Boolean)
-    .find((m) => {
-      return m.name === selectedMove
-    })
-}
-
-function processDamage(party, move) {
-  const isHitAttack =
-    !move.accuracy || move.accuracy >= Math.floor(Math.random() * 101)
-
-  if (!isHitAttack) {
-    console.log(`${move.name} errou`)
-    return party
-  }
-
-  console.log(`${move.name} acertou causando ${move.power}`)
-
-  return party.map((p) => {
-    if (p.isActive) {
-      return {
-        ...p,
-        currentLife: p.currentLife - move.power,
-      }
-    }
-
-    return p
-  })
-}
-
-function isActivePokemonAlive(party) {
-  return party.find((p) => p.isActive).currentLife > 0
-}
-
-function isAllPokemonDeads(party) {
-  return !party.some((p) => p.currentLife > 0)
-}
-
-function changeActivePokemon(party, newPokemonId) {
-  return party.map((p) => {
-    return {
-      ...p,
-      isActive: p.id === newPokemonId,
-    }
-  })
-}
-
 export function updateBattleParty(battleId, username, newPokemonId) {
   battles = battles.map((battle) => {
     if (battle.battleId === battleId) {
@@ -229,8 +189,6 @@ export function updateBattleParty(battleId, username, newPokemonId) {
 
     return battle
   })
-
-  console.log("battles", battles)
 }
 
 export function processBattleEntries(battleId) {
@@ -275,7 +233,8 @@ export function processBattleEntries(battleId) {
         if (isChallengerAttackFirst) {
           modifiedBattle.battleInfos.userInvited.party = processDamage(
             modifiedBattle.battleInfos.userInvited.party,
-            challengerMove
+            challengerMove,
+            challengerActivePokemon
           )
 
           if (
@@ -283,75 +242,81 @@ export function processBattleEntries(battleId) {
           ) {
             modifiedBattle.battleInfos.challenger.party = processDamage(
               modifiedBattle.battleInfos.challenger.party,
-              userInvitedMove
+              userInvitedMove,
+              userInvitedActivePokemon
             )
           }
         } else {
           modifiedBattle.battleInfos.challenger.party = processDamage(
             modifiedBattle.battleInfos.challenger.party,
-            userInvitedMove
+            userInvitedMove,
+            userInvitedActivePokemon
           )
 
           if (
-            isActivePokemonAlive(modifiedBattle.battleInfos.userInvited.party)
+            isActivePokemonAlive(modifiedBattle.battleInfos.challenger.party)
           ) {
             modifiedBattle.battleInfos.userInvited.party = processDamage(
               modifiedBattle.battleInfos.userInvited.party,
-              challengerMove
+              challengerMove,
+              challengerActivePokemon
             )
           }
         }
-
-        if (isAllPokemonDeads(modifiedBattle.battleInfos.userInvited.party)) {
-          modifiedBattle.isOver = true
-          modifiedBattle.winner = modifiedBattle.battleInfos.challenger.name
+      } else {
+        if (challenger.actionKey === "CHANGE") {
+          modifiedBattle.battleInfos.challenger.party = changeActivePokemon(
+            modifiedBattle.battleInfos.challenger.party,
+            challenger.actionValue.id
+          )
         }
 
-        if (isAllPokemonDeads(modifiedBattle.battleInfos.challenger.party)) {
-          modifiedBattle.isOver = true
-          modifiedBattle.winner = modifiedBattle.battleInfos.userInvited.name
+        if (userInvited.actionKey === "CHANGE") {
+          modifiedBattle.battleInfos.userInvited.party = changeActivePokemon(
+            modifiedBattle.battleInfos.userInvited.party,
+            userInvited.actionValue.id
+          )
         }
 
-        return modifiedBattle
+        if (challenger.actionKey === "ATTACK") {
+          modifiedBattle.battleInfos.userInvited.party = processDamage(
+            modifiedBattle.battleInfos.userInvited.party,
+            challengerMove,
+            challengerActivePokemon
+          )
+        }
+
+        if (userInvited.actionKey === "ATTACK") {
+          modifiedBattle.battleInfos.challenger.party = processDamage(
+            modifiedBattle.battleInfos.challenger.party,
+            userInvitedMove,
+            userInvitedActivePokemon
+          )
+        }
       }
 
-      if (challenger.actionKey === "CHANGE") {
-        modifiedBattle.battleInfos.challenger.party = changeActivePokemon(
-          modifiedBattle.battleInfos.challenger.party,
-          challenger.actionValue.id
-        )
-      }
+      const isAllPokemonDeadsUserInvited = isAllPokemonDeads(
+        modifiedBattle.battleInfos.userInvited.party
+      )
+      const isAllPokemonDeadsChallenger = isAllPokemonDeads(
+        modifiedBattle.battleInfos.challenger.party
+      )
 
-      if (userInvited.actionKey === "CHANGE") {
-        modifiedBattle.userInvited.challenger.party = changeActivePokemon(
-          modifiedBattle.battleInfos.userInvited.party,
-          userInvited.actionValue.id
-        )
-      }
-
-      if (challenger.actionKey === "ATTACK") {
-        modifiedBattle.battleInfos.userInvited.party = processDamage(
-          modifiedBattle.battleInfos.userInvited.party,
-          challengerMove
-        )
-      }
-
-      if (userInvited.actionKey === "ATTACK") {
-        modifiedBattle.battleInfos.challenger.party = processDamage(
-          modifiedBattle.battleInfos.challenger.party,
-          userInvitedMove
-        )
-      }
-
-      if (isAllPokemonDeads(modifiedBattle.battleInfos.userInvited.party)) {
+      if (isAllPokemonDeadsUserInvited || isAllPokemonDeadsChallenger) {
+        updateIsInBattle(modifiedBattle.battleInfos.challenger.name, false)
+        updateIsInBattle(modifiedBattle.battleInfos.userInvited.name, false)
         modifiedBattle.isOver = true
+      }
+
+      if (isAllPokemonDeadsUserInvited) {
         modifiedBattle.winner = modifiedBattle.battleInfos.challenger.name
       }
 
-      if (isAllPokemonDeads(modifiedBattle.battleInfos.challenger.party)) {
-        modifiedBattle.isOver = true
+      if (isAllPokemonDeadsChallenger) {
         modifiedBattle.winner = modifiedBattle.battleInfos.userInvited.name
       }
+
+      console.log("modifiedBattle", modifiedBattle)
 
       return modifiedBattle
     }
