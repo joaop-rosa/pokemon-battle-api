@@ -88,13 +88,13 @@ export function updateIsInBattle(username, isInBattle) {
 
 /* CHALLENGES */
 // Utilizar nomes
-export function addChallenge(socketIdChallenger, socketIdInvited) {
+export function addChallenge(socketIdOwner, userInvitedName) {
   challengesList = [
     ...challengesList,
     {
       challengeId: crypto.randomUUID(),
-      challenger: getUserById(socketIdChallenger),
-      userInvited: getUserById(socketIdInvited),
+      owner: getUserById(socketIdOwner),
+      userInvited: getUserByName(userInvitedName),
     },
   ]
 }
@@ -106,13 +106,15 @@ export function removeChallenge(challengeId) {
 }
 
 /* BATTLES */
-export function addBattles(battleInfos) {
+export function addBattles(owner, userInvited) {
   const newBattle = {
-    battleId: crypto.randomUUID(),
-    isOver: false,
-    battleInfos,
+    battleId: owner.socketId,
+    owner,
+    userInvited,
     round: 1,
     battleLog: [],
+    messages: [],
+    isOver: false,
     winner: "",
   }
 
@@ -133,9 +135,9 @@ export function battleCanBeProcessed(battleId) {
 }
 
 export function updateBattleLog(battleIdParam, log, username) {
-  const { battleInfos, round, battleLog, battleId } =
+  const { owner, userInvited, round, battleLog, battleId } =
     findBattleByid(battleIdParam)
-  const isChalleger = battleInfos.challenger.name === username
+  const isOwner = owner.name === username
   if (battleLog.find((bl) => bl.round === round)) {
     battles = battles.map((battle) => {
       if (battle.battleId === battleId) {
@@ -143,7 +145,7 @@ export function updateBattleLog(battleIdParam, log, username) {
           if (bl.round === round) {
             return {
               ...bl,
-              [isChalleger ? "challenger" : "userInvited"]: log,
+              [isOwner ? "owner" : "userInvited"]: log,
             }
           }
           return bl
@@ -158,7 +160,7 @@ export function updateBattleLog(battleIdParam, log, username) {
           ...battle.battleLog,
           {
             round,
-            [isChalleger ? "challenger" : "userInvited"]: log,
+            [isOwner ? "owner" : "userInvited"]: log,
           },
         ]
       }
@@ -171,16 +173,13 @@ export function updateBattleLog(battleIdParam, log, username) {
 export function updateBattleParty(battleId, username, newPokemonId) {
   battles = battles.map((battle) => {
     if (battle.battleId === battleId) {
-      const user =
-        battle.battleInfos.challenger.name === username
-          ? "challenger"
-          : "userInvited"
+      const user = battle.owner.name === username ? "owner" : "userInvited"
       let modifiedBattle = {
         ...battle,
       }
 
-      modifiedBattle.battleInfos[user].party = changeActivePokemon(
-        modifiedBattle.battleInfos[user].party,
+      modifiedBattle[user].party = changeActivePokemon(
+        modifiedBattle[user].party,
         newPokemonId
       )
 
@@ -192,8 +191,10 @@ export function updateBattleParty(battleId, username, newPokemonId) {
 }
 
 export function processBattleEntries(battleId) {
-  const { battleLog, round, battleInfos } = findBattleByid(battleId)
-  const { challenger, userInvited } = battleLog.find((bl) => bl.round === round)
+  const { battleLog, round, owner, userInvited } = findBattleByid(battleId)
+  const { owner: ownerLog, userInvited: userInvitedLog } = battleLog.find(
+    (bl) => bl.round === round
+  )
   battles = battles.map((battle) => {
     if (battle.battleId === battleId) {
       let modifiedBattle = {
@@ -201,94 +202,87 @@ export function processBattleEntries(battleId) {
         round: battle.round + 1,
       }
 
-      const challengerActivePokemon = Object.values(
-        battleInfos.challenger.party
-      ).find((p) => p.isActive)
-
-      const challengerMove = getMove(
-        challengerActivePokemon,
-        challenger.actionValue.name
+      const ownerActivePokemon = Object.values(owner.party).find(
+        (p) => p.isActive
       )
 
-      const userInvitedActivePokemon = Object.values(
-        battleInfos.userInvited.party
-      ).find((p) => p.isActive)
+      const ownerMove = getMove(ownerActivePokemon, ownerLog.actionValue.name)
+
+      const userInvitedActivePokemon = Object.values(userInvited.party).find(
+        (p) => p.isActive
+      )
 
       const userInvitedMove = getMove(
         userInvitedActivePokemon,
-        userInvited.actionValue.name
+        userInvitedLog.actionValue.name
       )
 
       if (
-        challenger.actionKey === "ATTACK" &&
-        userInvited.actionKey === "ATTACK"
+        ownerLog.actionKey === "ATTACK" &&
+        userInvitedLog.actionKey === "ATTACK"
       ) {
         const isChallengerAttackFirst = isChallegerFirst(
-          challengerActivePokemon.stats.speed,
-          challengerMove.priority,
+          ownerActivePokemon.stats.speed,
+          ownerMove.priority,
           userInvitedActivePokemon.stats.speed,
           userInvitedMove.priority
         )
 
         if (isChallengerAttackFirst) {
-          modifiedBattle.battleInfos.userInvited.party = processDamage(
-            modifiedBattle.battleInfos.userInvited.party,
-            challengerMove,
-            challengerActivePokemon
+          modifiedBattle.userInvited.party = processDamage(
+            modifiedBattle.userInvited.party,
+            ownerMove,
+            ownerActivePokemon
           )
 
-          if (
-            isActivePokemonAlive(modifiedBattle.battleInfos.userInvited.party)
-          ) {
-            modifiedBattle.battleInfos.challenger.party = processDamage(
-              modifiedBattle.battleInfos.challenger.party,
+          if (isActivePokemonAlive(modifiedBattle.userInvited.party)) {
+            modifiedBattle.owner.party = processDamage(
+              modifiedBattle.owner.party,
               userInvitedMove,
               userInvitedActivePokemon
             )
           }
         } else {
-          modifiedBattle.battleInfos.challenger.party = processDamage(
-            modifiedBattle.battleInfos.challenger.party,
+          modifiedBattle.owner.party = processDamage(
+            modifiedBattle.owner.party,
             userInvitedMove,
             userInvitedActivePokemon
           )
 
-          if (
-            isActivePokemonAlive(modifiedBattle.battleInfos.challenger.party)
-          ) {
-            modifiedBattle.battleInfos.userInvited.party = processDamage(
-              modifiedBattle.battleInfos.userInvited.party,
-              challengerMove,
-              challengerActivePokemon
+          if (isActivePokemonAlive(modifiedBattle.owner.party)) {
+            modifiedBattle.owner.party = processDamage(
+              modifiedBattle.owner.party,
+              ownerMove,
+              ownerActivePokemon
             )
           }
         }
       } else {
-        if (challenger.actionKey === "CHANGE") {
-          modifiedBattle.battleInfos.challenger.party = changeActivePokemon(
-            modifiedBattle.battleInfos.challenger.party,
-            challenger.actionValue.id
+        if (ownerLog.actionKey === "CHANGE") {
+          modifiedBattle.owner.party = changeActivePokemon(
+            modifiedBattle.owner.party,
+            ownerLog.actionValue.id
           )
         }
 
         if (userInvited.actionKey === "CHANGE") {
-          modifiedBattle.battleInfos.userInvited.party = changeActivePokemon(
-            modifiedBattle.battleInfos.userInvited.party,
+          modifiedBattle.userInvited.party = changeActivePokemon(
+            modifiedBattle.userInvited.party,
             userInvited.actionValue.id
           )
         }
 
-        if (challenger.actionKey === "ATTACK") {
-          modifiedBattle.battleInfos.userInvited.party = processDamage(
-            modifiedBattle.battleInfos.userInvited.party,
-            challengerMove,
-            challengerActivePokemon
+        if (ownerLog.actionKey === "ATTACK") {
+          modifiedBattle.userInvited.party = processDamage(
+            modifiedBattle.userInvited.party,
+            ownerMove,
+            ownerActivePokemon
           )
         }
 
         if (userInvited.actionKey === "ATTACK") {
-          modifiedBattle.battleInfos.challenger.party = processDamage(
-            modifiedBattle.battleInfos.challenger.party,
+          modifiedBattle.owner.party = processDamage(
+            modifiedBattle.owner.party,
             userInvitedMove,
             userInvitedActivePokemon
           )
@@ -296,24 +290,24 @@ export function processBattleEntries(battleId) {
       }
 
       const isAllPokemonDeadsUserInvited = isAllPokemonDeads(
-        modifiedBattle.battleInfos.userInvited.party
+        modifiedBattle.userInvited.party
       )
       const isAllPokemonDeadsChallenger = isAllPokemonDeads(
-        modifiedBattle.battleInfos.challenger.party
+        modifiedBattle.owner.party
       )
 
       if (isAllPokemonDeadsUserInvited || isAllPokemonDeadsChallenger) {
-        updateIsInBattle(modifiedBattle.battleInfos.challenger.name, false)
-        updateIsInBattle(modifiedBattle.battleInfos.userInvited.name, false)
+        updateIsInBattle(modifiedBattle.owner.name, false)
+        updateIsInBattle(modifiedBattle.userInvited.name, false)
         modifiedBattle.isOver = true
       }
 
       if (isAllPokemonDeadsUserInvited) {
-        modifiedBattle.winner = modifiedBattle.battleInfos.challenger.name
+        modifiedBattle.winner = modifiedBattle.owner.name
       }
 
       if (isAllPokemonDeadsChallenger) {
-        modifiedBattle.winner = modifiedBattle.battleInfos.userInvited.name
+        modifiedBattle.winner = modifiedBattle.userInvited.name
       }
 
       console.log("modifiedBattle", modifiedBattle)
@@ -329,8 +323,7 @@ export function findAndUpdateUserBattle(username, socketId) {
   const hasBattleOngoing = battles.some(
     (battle) =>
       !battle.isOver &&
-      (battle.battleInfos.userInvited.name === username ||
-        battle.battleInfos.challenger.name === username)
+      (battle.userInvited.name === username || battle.owner.name === username)
   )
 
   if (!hasBattleOngoing) {
@@ -339,17 +332,14 @@ export function findAndUpdateUserBattle(username, socketId) {
 
   let battle = null
   battles = battles.map((b) => {
-    const isChalleger = b.battleInfos.challenger.name === username
-    const isInvited = b.battleInfos.userInvited.name === username
+    const isOwner = b.owner.name === username
+    const isInvited = b.userInvited.name === username
     if (!b.isOver && (isChalleger || isInvited)) {
       const updatedBattle = {
         ...b,
-        battleInfos: {
-          ...b.battleInfos,
-          [isChalleger ? "userInvited" : "challenger"]: {
-            ...b.battleInfos[isChalleger ? "userInvited" : "challenger"],
-            socketId: socketId,
-          },
+        [isOwner ? "userInvited" : "owner"]: {
+          ...b.battleInfos[isOwner ? "userInvited" : "owner"],
+          socketId: socketId,
         },
       }
       battle = updatedBattle

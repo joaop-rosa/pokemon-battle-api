@@ -11,6 +11,10 @@ const io = new Server(server, {
   cors: {
     origin: "*",
   },
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true,
+  },
 })
 
 io.engine.on("connection_error", (err) => {
@@ -21,7 +25,8 @@ io.engine.on("connection_error", (err) => {
 })
 
 function onConnection(socket) {
-  console.log("Usuário conectado:", socket.id)
+  console.log("Socket conectado:", socket.id)
+  console.log("recovered?", socket.recovered)
   connectionHandlers(io, socket)
   battleHandlers(io, socket)
 }
