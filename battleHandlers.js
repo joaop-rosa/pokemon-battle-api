@@ -1,35 +1,29 @@
 import {
   addBattles,
-  addChallenge,
   battleCanBeProcessed,
-  challengesList,
   findBattleByid,
-  getUserById,
-  getUserByName,
+  finishBattle,
+  isBattleOver,
   processBattleEntries,
-  removeChallenge,
   updateBattleLog,
   updateBattleParty,
-  updateIsInBattle,
 } from "./db.js"
-import crypto from "crypto"
 import { emitConnectedList } from "./commonEvents.js"
+import { socketIsInBattle } from "./helpers.js"
+import crypto from "crypto"
 
 export default function battleHandlers(io, socket) {
-  function emitChallenges(socketId) {
-    io.to(socketId).emit(
-      "challenges",
-      challengesList.filter(
-        (challenge) => challenge.userInvited.socketId === socketId
-      )
-    )
+  async function emitChallenges(userInvitedSocketId) {
+    const ownerSocket = await io.in(socket.id).fetchSockets()
+    const { id, data } = ownerSocket[0]
+    io.to(userInvitedSocketId).emit("challenges", { id, name: data.name })
   }
 
   function userBattlePrepare(user) {
     return {
-      name: user.name,
-      socketId: user.socketId,
-      party: user.party.map((pokemon, index) => ({
+      name: user.data.name,
+      socketId: user.id,
+      party: user.data.party.map((pokemon, index) => ({
         id: pokemon.partyId,
         name: pokemon.name,
         isActive: index === 0,
@@ -46,38 +40,27 @@ export default function battleHandlers(io, socket) {
     }
   }
 
-  function battleInvite(username) {
-    const userInvited = getUserByName(username)
-    addChallenge(socket.id, username)
-    emitChallenges(userInvited.socketId)
-  }
+  async function battleInviteResponse(ownerSocket) {
+    const socketsOwner = await io.in(ownerSocket).fetchSockets()
+    const owner = socketsOwner[0]
+    const ownerIsInBattle = socketIsInBattle(owner)
 
-  function battleInviteResponse(challengeId, response) {
-    const { userInvited, owner } = challengesList.find(
-      (c) => c.challengeId === challengeId
+    if (ownerIsInBattle) {
+      // TODO - implementar uma mensagem
+      return
+    }
+
+    const battleId = crypto.randomUUID()
+
+    owner.join(battleId)
+    socket.join(battleId)
+    const battle = addBattles(
+      battleId,
+      userBattlePrepare(owner),
+      userBattlePrepare(socket)
     )
-
-    // Aceitou e o desafiante não esta disponível
-    if (response && getUserById(owner.socketId).isInBattle) {
-      // Enviar um warning para o cliente que aceitou
-    }
-
-    // Aceitou e o desafiante esta disponível
-    if (response && !owner.isInBattle) {
-      socket.join(owner.socketId)
-      updateIsInBattle(userInvited.name, true)
-      updateIsInBattle(owner.name, true)
-      const battle = addBattles(
-        userBattlePrepare(owner),
-        userBattlePrepare(userInvited)
-      )
-      io.to(owner.socketId).emit("battle", battle)
-    }
-
+    io.to(battleId).emit("battle", battle)
     emitConnectedList(io)
-    removeChallenge(challengeId)
-    emitChallenges(userInvited.socketId)
-    emitChallenges(owner.socketId)
   }
 
   function battleActions(battleId, action) {
@@ -93,13 +76,20 @@ export default function battleHandlers(io, socket) {
     )
 
     const battleLogIsComplete = battleCanBeProcessed(battleId)
-    const battle = findBattleByid(battleId)
+    let battle = findBattleByid(battleId)
 
     if (battleLogIsComplete) {
       processBattleEntries(battleId)
+      battle = findBattleByid(battleId)
 
-      io.to(battle.userInvited.socketId).emit("battle:action-response", battle)
-      io.to(battle.owner.socketId).emit("battle:action-response", battle)
+      if (isBattleOver(battleId)) {
+        finishBattle(battleId)
+        battle = findBattleByid(battleId)
+        io.to(battleId).emit("battle:action-response", battle)
+        io.socketsLeave(battleId)
+      } else {
+        io.to(battleId).emit("battle:action-response", battle)
+      }
     } else {
       io.to(socket.id).emit("battle:action-response", battle)
     }
@@ -110,11 +100,10 @@ export default function battleHandlers(io, socket) {
   function battleActionChange(battleId, newPokemonId, username) {
     updateBattleParty(battleId, username, newPokemonId)
     const battle = findBattleByid(battleId)
-    io.to(battle.userInvited.socketId).emit("battle:action-response", battle)
-    io.to(battle.owner.socketId).emit("battle:action-response", battle)
+    io.to(battleId).emit("battle:action-response", battle)
   }
 
-  socket.on("battle:invite", battleInvite)
+  socket.on("battle:invite", emitChallenges)
   socket.on("battle:invite-response", battleInviteResponse)
   socket.on("battle:actions", battleActions)
   socket.on("battle:action-change", battleActionChange)

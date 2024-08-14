@@ -1,4 +1,3 @@
-import crypto from "crypto"
 import {
   changeActivePokemon,
   getMove,
@@ -8,107 +7,12 @@ import {
   processDamage,
 } from "./battles-helpers.js"
 
-export let connectedUsers = []
-export let challengesList = []
 export let battles = []
 
-/* CONNECTED USERS */
-export function getUserById(socketId) {
-  console.log("connectedUsers", connectedUsers)
-  return connectedUsers.find((u) => socketId === u.socketId)
-}
-
-export function getUserByName(name) {
-  return connectedUsers.find((u) => name === u.name)
-}
-
-export function addUser(user) {
-  connectedUsers = [...connectedUsers, user]
-}
-
-export function connectUser(user) {
-  if (!user.socketId || !user.party || !user.name) {
-    return console.log("Falha na conexão de:", user.name)
-  }
-
-  const userFromList = getUserByName(user.name)
-
-  if (userFromList) {
-    if (userFromList.isOnline) {
-      console.log("Usuário " + user.name + " já está conectado")
-      return
-    }
-    updateIsOnline(user.name, user.socketId)
-    return console.log("Usuário conectado:", user.name)
-  }
-
-  addUser(user)
-  console.log("Usuário adicionado:", user.name)
-}
-
-export function removeUser(socketId) {
-  connectedUsers = connectedUsers.map((user) => {
-    if (user.socketId === socketId) {
-      return { ...user, isOnline: false }
-    }
-
-    return user
-  })
-}
-
-export function updateSocketId(newSocketId, oldSocketId) {
-  connectedUsers = connectedUsers.map((user) => {
-    if (user.socketId === oldSocketId) {
-      return { ...user, isOnline: true, socketId: newSocketId }
-    }
-
-    return user
-  })
-}
-
-export function updateIsOnline(name, socketId) {
-  connectedUsers = connectedUsers.map((u) => {
-    if (u.name === name) {
-      return { ...u, socketId: socketId, isOnline: true }
-    }
-
-    return u
-  })
-}
-
-export function updateIsInBattle(username, isInBattle) {
-  connectedUsers = connectedUsers.map((user) => {
-    if (user.name === username) {
-      return { ...user, isInBattle }
-    }
-    return user
-  })
-  console.log("connectedUsers-updateIsInBattle", connectedUsers)
-}
-
-/* CHALLENGES */
-// Utilizar nomes
-export function addChallenge(socketIdOwner, userInvitedName) {
-  challengesList = [
-    ...challengesList,
-    {
-      challengeId: crypto.randomUUID(),
-      owner: getUserById(socketIdOwner),
-      userInvited: getUserByName(userInvitedName),
-    },
-  ]
-}
-
-export function removeChallenge(challengeId) {
-  challengesList = challengesList.filter(
-    (challenge) => challenge.challengeId !== challengeId
-  )
-}
-
 /* BATTLES */
-export function addBattles(owner, userInvited) {
+export function addBattles(battleId, owner, userInvited) {
   const newBattle = {
-    battleId: owner.socketId,
+    battleId: battleId,
     owner,
     userInvited,
     round: 1,
@@ -135,8 +39,7 @@ export function battleCanBeProcessed(battleId) {
 }
 
 export function updateBattleLog(battleIdParam, log, username) {
-  const { owner, userInvited, round, battleLog, battleId } =
-    findBattleByid(battleIdParam)
+  const { owner, round, battleLog, battleId } = findBattleByid(battleIdParam)
   const isOwner = owner.name === username
   if (battleLog.find((bl) => bl.round === round)) {
     battles = battles.map((battle) => {
@@ -289,30 +192,41 @@ export function processBattleEntries(battleId) {
         }
       }
 
-      const isAllPokemonDeadsUserInvited = isAllPokemonDeads(
-        modifiedBattle.userInvited.party
-      )
-      const isAllPokemonDeadsChallenger = isAllPokemonDeads(
-        modifiedBattle.owner.party
-      )
+      return modifiedBattle
+    }
 
-      if (isAllPokemonDeadsUserInvited || isAllPokemonDeadsChallenger) {
-        updateIsInBattle(modifiedBattle.owner.name, false)
-        updateIsInBattle(modifiedBattle.userInvited.name, false)
-        modifiedBattle.isOver = true
-      }
+    return battle
+  })
+}
+
+export function isBattleOver(battleId) {
+  const battle = findBattleByid(battleId)
+
+  const isAllPokemonDeadsUserInvited = isAllPokemonDeads(
+    battle.userInvited.party
+  )
+  const isAllPokemonDeadsOwner = isAllPokemonDeads(battle.owner.party)
+
+  return isAllPokemonDeadsUserInvited || isAllPokemonDeadsOwner
+}
+
+export function finishBattle(battleId) {
+  battles = battles.map((battle) => {
+    if (battle.battleId === battleId) {
+      const isAllPokemonDeadsUserInvited = isAllPokemonDeads(
+        battle.userInvited.party
+      )
+      const isAllPokemonDeadsOwner = isAllPokemonDeads(battle.owner.party)
 
       if (isAllPokemonDeadsUserInvited) {
-        modifiedBattle.winner = modifiedBattle.owner.name
+        battle.winner = battle.owner.name
       }
 
-      if (isAllPokemonDeadsChallenger) {
-        modifiedBattle.winner = modifiedBattle.userInvited.name
+      if (isAllPokemonDeadsOwner) {
+        battle.winner = battle.userInvited.name
       }
 
-      console.log("modifiedBattle", modifiedBattle)
-
-      return modifiedBattle
+      battle.isOver = true
     }
 
     return battle
