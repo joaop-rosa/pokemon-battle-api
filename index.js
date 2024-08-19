@@ -1,4 +1,5 @@
 import express from "express"
+import "dotenv/config"
 import { createServer } from "node:http"
 import { Server } from "socket.io"
 import battleHandlers from "./battleHandlers.js"
@@ -7,7 +8,7 @@ import connectionHandlers from "./connectionHandlers.js"
 /*
   1 - Criação do servidor
 */
-const port = 3001
+const port = process.env.WEBSOCKET_PORT
 const app = express()
 const server = createServer(app)
 const io = new Server(server, {
@@ -36,5 +37,5 @@ function onConnection(socket) {
 io.on("connection", onConnection)
 
 server.listen(port, () => {
-  console.log(`server running at http://localhost:${port}`)
+  console.log(`server running at ${port}`)
 })
