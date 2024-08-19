@@ -4,6 +4,9 @@ import { Server } from "socket.io"
 import battleHandlers from "./battleHandlers.js"
 import connectionHandlers from "./connectionHandlers.js"
 
+/*
+  1 - Criação do servidor
+*/
 const port = 3001
 const app = express()
 const server = createServer(app)
@@ -20,10 +23,16 @@ const io = new Server(server, {
 function onConnection(socket) {
   console.log("Socket conectado:", socket.id)
   console.log("recovered?", socket.recovered)
+  /*
+    3 - Eventos padrões de conexão
+  */
   connectionHandlers(io, socket)
   battleHandlers(io, socket)
 }
 
+/*
+  2 - Definindo ações para cada evento
+*/
 io.on("connection", onConnection)
 
 server.listen(port, () => {
