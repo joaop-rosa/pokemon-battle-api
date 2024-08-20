@@ -5,9 +5,6 @@ import { Server } from "socket.io"
 import battleHandlers from "./battleHandlers.js"
 import connectionHandlers from "./connectionHandlers.js"
 
-/*
-  1 - Criação do servidor
-*/
 const port = process.env.WEBSOCKET_PORT
 const app = express()
 const server = createServer(app)
@@ -27,16 +24,19 @@ const io = new Server(server, {
 function onConnection(socket) {
   console.log("Socket conectado:", socket.id)
   console.log("recovered?", socket.recovered)
-  /*
-    3 - Eventos padrões de conexão
-  */
   connectionHandlers(io, socket)
   battleHandlers(io, socket)
+
+  socket.on("chat:message", (message) => {
+    io.emit("chat:message", {
+      name: socket.data.name,
+      color: socket.data.color,
+      message,
+      hour: Date.now(),
+    })
+  })
 }
 
-/*
-  2 - Definindo ações para cada evento
-*/
 io.on("connection", onConnection)
 
 server.listen(port, () => {

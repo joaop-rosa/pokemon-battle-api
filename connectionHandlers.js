@@ -2,15 +2,28 @@ import { emitConnectedList } from "./commonEvents.js"
 
 export default function connectionHandlers(io, socket) {
   function isValidLogin(name, party) {
-    return name && name.trim().length > 0 && party && party.length >= 1
+    return (
+      name &&
+      name.trim().length > 0 &&
+      name.trim().length < 20 &&
+      party &&
+      party.length >= 1
+    )
   }
 
-  function connectServer(name, party) {
+  function connectServer(name, party, callback) {
     console.log(`Logando: ${name}`)
-    if (isValidLogin(name, party)) {
+    const canLogin = isValidLogin(name, party)
+    callback(canLogin)
+
+    if (canLogin) {
       socket.data.name = name
       socket.data.party = party
+      socket.data.color =
+        "#" + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0")
       emitConnectedList(io)
+    } else {
+      socket.disconnect()
     }
   }
 

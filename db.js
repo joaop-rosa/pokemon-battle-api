@@ -189,10 +189,10 @@ export function processBattleEntries(battleId) {
           )
         }
 
-        if (userInvited.actionKey === "CHANGE") {
+        if (userInvitedLog.actionKey === "CHANGE") {
           modifiedBattle.userInvited.party = changeActivePokemon(
             modifiedBattle.userInvited.party,
-            userInvited.actionValue.id
+            userInvitedLog.actionValue.id
           )
 
           const newActivePokemon = getActivePokemonFromParty(
@@ -215,7 +215,7 @@ export function processBattleEntries(battleId) {
           modifiedBattle.messages.push(userInvitedMessage)
         }
 
-        if (userInvited.actionKey === "ATTACK") {
+        if (userInvitedLog.actionKey === "ATTACK") {
           const { message: ownerMessage, party: ownerParty } = processDamage(
             modifiedBattle.owner.party,
             userInvitedMove,

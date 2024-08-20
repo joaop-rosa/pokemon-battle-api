@@ -65,7 +65,8 @@ export default function battleHandlers(io, socket) {
   }
 
   function battleActions(battleId, action) {
-    const { actionKey, username, actionValue } = action
+    const { actionKey, actionValue } = action
+    const username = socket.data.name
 
     updateBattleLog(
       battleId,
@@ -98,7 +99,8 @@ export default function battleHandlers(io, socket) {
     emitConnectedList(io)
   }
 
-  function battleActionChange(battleId, newPokemonId, username) {
+  function battleActionChange(battleId, newPokemonId) {
+    const username = socket.data.name
     updateBattleParty(battleId, username, newPokemonId)
     const battle = findBattleByid(battleId)
     io.to(battleId).emit("battle:action-response", battle)
