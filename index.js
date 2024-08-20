@@ -23,7 +23,9 @@ const io = new Server(server, {
 
 function onConnection(socket) {
   console.log("Socket conectado:", socket.id)
-  console.log("recovered?", socket.recovered)
+  if (socket.recovered) {
+    console.log("Reconectado: ", socket.data.name)
+  }
   connectionHandlers(io, socket)
   battleHandlers(io, socket)
 
