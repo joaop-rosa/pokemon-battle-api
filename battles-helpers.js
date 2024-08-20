@@ -213,8 +213,6 @@ export function effectivenessModifier(attackType, attackedPokemonTypes) {
   let modifier = 1.0
 
   attackedPokemonTypes.forEach((attackedPokemonType) => {
-    console.log("attackType", attackType)
-    console.log("attackedPokemonTypes", attackedPokemonType)
     if (TYPE_EFFECTIVE[attackType].advantage.includes(attackedPokemonType)) {
       modifier *= 2
     }
@@ -226,55 +224,72 @@ export function effectivenessModifier(attackType, attackedPokemonTypes) {
     }
   })
 
-  console.log("modifier", modifier)
   return modifier
 }
 
 export function processDamage(party, move, attackerPokemon) {
+  let message = ""
+  let partyModified = party
+
   const isHitAttack =
     !move.accuracy || move.accuracy >= Math.floor(Math.random() * 101)
 
   if (!isHitAttack) {
-    console.log(`${move.name} errou`)
-    return party
+    message = `${attackerPokemon.name} errou o ataque ${move.name}`
+  } else {
+    partyModified = party.map((p) => {
+      if (p.isActive) {
+        const defaultLevel = 50
+        const randomFactor =
+          (Math.floor(Math.random() * (100 - 85 + 1)) + 85) / 100
+        const statsFactor =
+          move.damageClass === "Physical"
+            ? Math.round(attackerPokemon.stats.attack / p.stats.defense)
+            : Math.round(
+                attackerPokemon.stats["special-attack"] /
+                  p.stats["special-defense"]
+              )
+        const hasStab = attackerPokemon.types.includes(move.type)
+
+        const levelDamage = (2 * defaultLevel) / 5 + 2
+
+        let damage = Math.round(
+          (levelDamage * move.power * statsFactor) / 50 + 2
+        )
+
+        damage = Math.round(damage * randomFactor)
+
+        if (hasStab) {
+          damage = Math.round(damage * 1.5)
+        }
+
+        const modifier = effectivenessModifier(move.type, p.types)
+        damage = Math.round(damage * modifier)
+
+        if (modifier >= 2) {
+          message = `${attackerPokemon.name} atacou com ${move.name}
+          e causou ${damage} de dano superefetivo`
+        } else if (modifier < 0) {
+          message = `${attackerPokemon.name} atacou com ${move.name}
+          e causou ${damage} pois o ataque não é efetivo contra o adversário`
+        } else if (modifier < 1) {
+          message = `${attackerPokemon.name} atacou com ${move.name}
+          e causou ${damage} de dano pouco efetivo`
+        } else {
+          message = `${attackerPokemon.name} atacou com ${move.name} e causou ${damage} de dano`
+        }
+
+        return {
+          ...p,
+          currentLife: p.currentLife - damage,
+        }
+      }
+
+      return p
+    })
   }
 
-  return party.map((p) => {
-    if (p.isActive) {
-      const defaultLevel = 50
-      const randomFactor =
-        (Math.floor(Math.random() * (100 - 85 + 1)) + 85) / 100
-      const statsFactor =
-        move.damageClass === "Physical"
-          ? Math.round(attackerPokemon.stats.attack / p.stats.defense)
-          : Math.round(
-              attackerPokemon.stats["special-attack"] /
-                p.stats["special-defense"]
-            )
-      const hasStab = attackerPokemon.types.includes(move.type)
-
-      const levelDamage = (2 * defaultLevel) / 5 + 2
-
-      let damage = Math.round((levelDamage * move.power * statsFactor) / 50 + 2)
-
-      damage = Math.round(damage * randomFactor)
-
-      if (hasStab) {
-        damage = Math.round(damage * 1.5)
-      }
-
-      damage = Math.round(damage * effectivenessModifier(move.type, p.types))
-
-      console.log(`${move.name} acertou causando ${damage}`)
-
-      return {
-        ...p,
-        currentLife: p.currentLife - damage,
-      }
-    }
-
-    return p
-  })
+  return { message, party: partyModified }
 }
 
 export function isActivePokemonAlive(party) {

@@ -15,10 +15,13 @@ const io = new Server(server, {
   cors: {
     origin: "*",
   },
+  pingInterval: 20000,
+  pingTimeout: 5000,
   connectionStateRecovery: {
     maxDisconnectionDuration: 2 * 60 * 1000,
-    skipMiddlewares: true,
   },
+  transports: ["websocket", "polling"],
+  allowUpgrades: true, // use WebSocket first, if available
 })
 
 function onConnection(socket) {

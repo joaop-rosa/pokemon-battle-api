@@ -13,10 +13,11 @@ import { socketIsInBattle } from "./helpers.js"
 import crypto from "crypto"
 
 export default function battleHandlers(io, socket) {
-  async function emitChallenges(userInvitedSocketId) {
+  async function emitChallenges(userInvitedSocketId, confirmCallback) {
     const ownerSocket = await io.in(socket.id).fetchSockets()
     const { id, data } = ownerSocket[0]
     io.to(userInvitedSocketId).emit("challenges", { id, name: data.name })
+    confirmCallback(true)
   }
 
   function userBattlePrepare(user) {
@@ -46,7 +47,7 @@ export default function battleHandlers(io, socket) {
     const ownerIsInBattle = socketIsInBattle(owner)
 
     if (ownerIsInBattle) {
-      // TODO - implementar uma mensagem
+      io.to(socket.id).emit("message", "Usuário já está em batalha")
       return
     }
 

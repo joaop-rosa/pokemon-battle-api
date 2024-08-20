@@ -1,11 +1,17 @@
 import { emitConnectedList } from "./commonEvents.js"
 
 export default function connectionHandlers(io, socket) {
+  function isValidLogin(name, party) {
+    return name && name.trim().length > 0 && party && party.length >= 1
+  }
+
   function connectServer(name, party) {
-    console.log(`Tentativa de login: ${name}`)
-    socket.data.name = name
-    socket.data.party = party
-    emitConnectedList(io)
+    console.log(`Logando: ${name}`)
+    if (isValidLogin(name, party)) {
+      socket.data.name = name
+      socket.data.party = party
+      emitConnectedList(io)
+    }
   }
 
   function connectedList() {
