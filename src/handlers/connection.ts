@@ -15,7 +15,7 @@ export default function connectionHandlers(io: Server, socket: Socket) {
     if (canLogin) {
       socket.data.name = name
       socket.data.party = party
-      socket.data.color = "#" + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0")
+      socket.data.color = `#${((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0")}`
       emitConnectedList(io)
     } else {
       socket.disconnect()

@@ -12,7 +12,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "lint": "biome check ./src",
-    "format": "biome format --write ./src"
+    "format": "biome format --write ./src",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "dotenv": "17.4.2",
@@ -22,7 +24,10 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
     "@types/express": "5.0.6",
+    "@types/jest": "30.0.0",
     "@types/node": "25.9.1",
+    "jest": "30.4.2",
+    "ts-jest": "29.4.11",
     "tsx": "4.22.3",
     "typescript": "6.0.3"
   }

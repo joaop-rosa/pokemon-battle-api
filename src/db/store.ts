@@ -1,10 +1,4 @@
-import {
-  type Action,
-  type Battle,
-  BattleLogEntry,
-  type BattleUser,
-  type Pokemon,
-} from "../types/index.js"
+import type { Action, Battle, BattleUser, Pokemon } from "../types/index.js"
 import {
   changeActivePokemon,
   getMove,
@@ -118,7 +112,7 @@ export function processBattleEntries(battleId: string): void {
   const { battleLog, round, owner, userInvited } = battle
   const roundLog = battleLog.find((bl) => bl.round === round)
 
-  if (!roundLog || !roundLog.owner || !roundLog.userInvited) return
+  if (!roundLog?.owner || !roundLog.userInvited) return
 
   const { owner: ownerLog, userInvited: userInvitedLog } = roundLog
 

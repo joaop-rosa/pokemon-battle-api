@@ -1,4 +1,4 @@
-import crypto from "crypto"
+import crypto from "node:crypto"
 import type { Server, Socket } from "socket.io"
 import {
   addBattles,
@@ -10,7 +10,7 @@ import {
   updateBattleLog,
   updateBattleParty,
 } from "../db/store.js"
-import type { Action, BattleUser, Pokemon } from "../types/index.js"
+import type { Action, BattleUser, Move, Pokemon, SocketData } from "../types/index.js"
 import { emitConnectedList } from "../utils/commonEvents.js"
 import { socketIsInBattle } from "../utils/socketHelpers.js"
 
@@ -27,18 +27,18 @@ export default function battleHandlers(io: Server, socket: Socket) {
     }
   }
 
-  function userBattlePrepare(user: { id: string; data: any }): BattleUser {
+  function userBattlePrepare(user: { id: string; data: SocketData }): BattleUser {
     return {
-      name: user.data.name,
+      name: user.data.name || "",
       socketId: user.id,
-      party: user.data.party.map((pokemon: Pokemon, index: number) => ({
+      party: (user.data.party || []).map((pokemon: Pokemon, index: number) => ({
         id: pokemon.partyId || pokemon.id,
         name: pokemon.name,
         isActive: index === 0,
         currentLife: pokemon.stats.hp,
         types: pokemon.types,
         stats: pokemon.stats,
-        moves: pokemon.movesSelected || pokemon.moves,
+        moves: (pokemon.movesSelected || pokemon.moves) as Record<string, Move>,
         sprites: {
           miniature: pokemon.sprites.miniature,
           front: pokemon.sprites.front,
