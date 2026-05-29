@@ -2,18 +2,33 @@
   "name": "pokemon-battle-api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "author": "Joao Rosa",
   "license": "ISC",
   "homepage": "https://github.com/joaop-rosa/pokemon-battle-api#readme",
   "type": "module",
   "scripts": {
-    "start": "nodemon index.js"
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "lint": "biome check ./src",
+    "format": "biome format --write ./src",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "express": "^4.18.3",
-    "nodemon": "^3.1.0",
-    "socket.io": "^4.7.4"
+    "dotenv": "17.4.2",
+    "express": "5.2.1",
+    "socket.io": "4.8.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@types/express": "5.0.6",
+    "@types/jest": "30.0.0",
+    "@types/node": "25.9.1",
+    "jest": "30.4.2",
+    "ts-jest": "29.4.11",
+    "tsx": "4.22.3",
+    "typescript": "6.0.3"
   }
 }
