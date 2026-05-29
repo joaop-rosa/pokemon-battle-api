@@ -149,7 +149,7 @@ export function processDamage(
   const isHitAttack = !move.accuracy || move.accuracy >= Math.floor(Math.random() * 101)
 
   if (!isHitAttack) {
-    message = `${attackerPokemon.name} errou o ataque ${move.name}`
+    message = `${attackerPokemon.name} missed the attack ${move.name}`
   } else {
     partyModified = party.map((p) => {
       if (p.isActive) {
@@ -175,13 +175,13 @@ export function processDamage(
         damage = Math.round(damage * modifier)
 
         if (modifier >= 2) {
-          message = `${attackerPokemon.name} atacou com ${move.name} e causou ${damage} de dano superefetivo`
+          message = `${attackerPokemon.name} used ${move.name} and dealt ${damage} super effective damage`
         } else if (modifier === 0) {
-          message = `${attackerPokemon.name} atacou com ${move.name} e causou ${damage} pois o ataque não é efetivo contra o adversário`
+          message = `${attackerPokemon.name} used ${move.name} but it had no effect on the opponent`
         } else if (modifier < 1) {
-          message = `${attackerPokemon.name} atacou com ${move.name} e causou ${damage} de dano pouco efetivo`
+          message = `${attackerPokemon.name} used ${move.name} and dealt ${damage} not very effective damage`
         } else {
-          message = `${attackerPokemon.name} atacou com ${move.name} e causou ${damage} de dano`
+          message = `${attackerPokemon.name} used ${move.name} and dealt ${damage} damage`
         }
 
         return {

@@ -48,14 +48,14 @@ export interface Move {
 
 export interface Pokemon {
   id: string
-  partyId?: string // Usado na montagem da party antes da batalha
+  partyId?: string // Used in party creation before battle
   name: string
   isActive: boolean
   currentLife: number
   types: PokemonType[]
   stats: Stats
   moves: Record<string, Move>
-  movesSelected?: Move[] // Usado na party antes da batalha
+  movesSelected?: Move[] // Used in the party before the battle
   sprites: Sprites
 }
 

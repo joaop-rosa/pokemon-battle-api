@@ -58,7 +58,7 @@ export default function battleHandlers(io: Server, socket: Socket) {
     const ownerIsInBattle = socketIsInBattle(owner as unknown as Socket)
 
     if (ownerIsInBattle) {
-      io.to(socket.id).emit("message", "Usuário já está em batalha")
+      io.to(socket.id).emit("message", "User is already in a battle")
       return
     }
 

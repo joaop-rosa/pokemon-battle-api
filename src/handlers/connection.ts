@@ -27,7 +27,7 @@ export default function connectionHandlers(io: Server, socket: Socket) {
   }
 
   function disconnect() {
-    console.log("Socket desconectado:", socket.id, socket.data.name)
+    console.log("Socket disconnected:", socket.id, socket.data.name)
     emitConnectedList(io)
   }
 
