@@ -6,13 +6,14 @@ import battleHandlers from "./handlers/battle.js"
 import connectionHandlers from "./handlers/connection.js"
 import type { SocketData } from "./types/index.js"
 
-const port = process.env.WEBSOCKET_PORT || 3003
+const port = process.env.WEBSOCKET_PORT || 3001
+const corsOrigin = process.env.CORS_ORIGIN || "*"
 const app = express()
 const server = createServer(app)
 
 const io = new Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, SocketData>(server, {
   cors: {
-    origin: "*",
+    origin: corsOrigin === "*" ? "*" : corsOrigin.split(","),
   },
   pingInterval: 20000,
   pingTimeout: 5000,
